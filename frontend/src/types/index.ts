@@ -87,6 +87,20 @@ export interface PartStatsDaily {
   TemplateNotFilled: number;
 }
 
+export interface ConversionStatsItem {
+  source: string;
+  state: string;
+  target_format: string;
+  created_utc: string | null;
+  wait_seconds: number | null;
+}
+
+export interface ConversionStatsResponse {
+  total: number;
+  failed_count: number;
+  items: ConversionStatsItem[];
+}
+
 export interface PartStatsResponse {
   category_breakdown: PartStatsCategory[];
   daily_breakdown: PartStatsDaily[];

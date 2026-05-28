@@ -637,3 +637,67 @@ class DataAccessLayer:
         except Exception as e:
             logger.error("Failed to get document stats: %s", e)
             raise PlmDataError(f"Failed to get document stats: {e}") from e
+
+    def get_conversion_stats(self) -> dict:
+        """Compute conversion current stats for the race-track visualization.
+
+        Each conversion job's wait time is computed as:
+            wait_seconds = scraped_at (Asia/Shanghai) - created_utc (UTC)
+        Jobs are sorted: failed FIRST, then by wait_seconds descending (longest wait = front).
+        """
+        try:
+            rows = self.session.execute(
+                select(
+                    ConversionCurrent.source,
+                    ConversionCurrent.state,
+                    ConversionCurrent.target_format,
+                    ConversionCurrent.created_utc,
+                    ConversionCurrent.scraped_at,
+                )
+            ).fetchall()
+
+            items: list[dict] = []
+            for r in rows:
+                source, state, target_format, created_utc_str, scraped_at = r
+                wait_seconds: float | None = None
+                if created_utc_str and scraped_at:
+                    try:
+                        created_utc_dt = datetime.fromisoformat(
+                            created_utc_str.replace("Z", "+00:00")
+                        )
+                        # Treat created_utc as UTC, scraped_at as BJ
+                        created_aware = created_utc_dt.replace(tzinfo=BJ_TZ)
+                        scraped_aware = scraped_at if scraped_at.tzinfo else scraped_at.replace(tzinfo=BJ_TZ)
+                        delta = scraped_aware - created_aware
+                        wait_seconds = delta.total_seconds()
+                        if wait_seconds < 0:
+                            wait_seconds = 0  # guard against clock skew
+                    except Exception:
+                        wait_seconds = None
+
+                items.append({
+                    "source": source or "",
+                    "state": state or "unknown",
+                    "target_format": target_format or "",
+                    "created_utc": created_utc_str,
+                    "wait_seconds": wait_seconds,
+                })
+
+            # Sort: failed first, then longest wait descending
+            items.sort(
+                key=lambda x: (
+                    0 if x["state"].lower() == "failed" else 1,
+                    -x["wait_seconds"] if x["wait_seconds"] is not None else -float("inf"),
+                )
+            )
+
+            failed_count = sum(1 for x in items if x["state"].lower() == "failed")
+
+            return {
+                "total": len(items),
+                "failed_count": failed_count,
+                "items": items,
+            }
+        except Exception as e:
+            logger.error("Failed to get conversion stats: %s", e)
+            raise PlmDataError(f"Failed to get conversion stats: {e}") from e

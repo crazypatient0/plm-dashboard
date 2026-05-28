@@ -2,6 +2,7 @@
 
 import axios from 'axios';
 import type {
+  ConversionStatsResponse,
   CountResponse,
   DataType,
   DocumentStatsResponse,
@@ -87,6 +88,13 @@ export async function fetchPartStats(): Promise<PartStatsResponse> {
 export async function fetchDocumentStats(): Promise<DocumentStatsResponse> {
   const { data } = await http.get<DocumentStatsResponse>(
     '/records/document/stats',
+  );
+  return data;
+}
+
+export async function fetchConversionStats(): Promise<ConversionStatsResponse> {
+  const { data } = await http.get<ConversionStatsResponse>(
+    '/records/conversion/stats',
   );
   return data;
 }
