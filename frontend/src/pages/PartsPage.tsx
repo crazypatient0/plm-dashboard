@@ -177,7 +177,7 @@ export default function PartsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
         <div className="card" style={{ padding: '12px 16px' }}>
           <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Total</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-text)', marginTop: 4 }}>{stats.current_count}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-text)', marginTop: 4 }}>{total}</div>
         </div>
         {[
           { key: 'Normal', color: COLORS.Normal },
