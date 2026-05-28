@@ -88,13 +88,7 @@ export default function DashboardPage() {
       {parts.length > 0 && (
         <div className="section">
         <div className="section-header">
-          <div>
-            <h2 className="section-title">Overview</h2>
-            <div className="text-secondary text-sm" style={{ marginTop: 4, paddingLeft: 2 }}>
-              Auto-refresh in{' '}
-              <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{secondsLeft}s</span>
-            </div>
-          </div>
+          <h2 className="section-title">Part Records</h2>
         </div>
           <div className="card">
             <div className="card-body" style={{ padding: 0 }}>
