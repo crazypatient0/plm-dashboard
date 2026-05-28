@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
 interface StatCardProps {
@@ -7,6 +8,7 @@ interface StatCardProps {
   icon?: ReactNode;
   color?: 'primary' | 'success' | 'warning' | 'danger';
   loading?: boolean;
+  to?: string;
 }
 
 const COLOR_MAP: Record<string, string> = {
@@ -23,9 +25,10 @@ export default function StatCard({
   icon,
   color = 'primary',
   loading = false,
+  to,
 }: StatCardProps) {
-  return (
-    <div className="stat-card">
+  const card = (
+    <>
       {icon && (
         <div className="stat-icon" style={{ color: COLOR_MAP[color] }}>
           {icon}
@@ -40,6 +43,16 @@ export default function StatCard({
         )}
         {subtitle && <div className="stat-subtitle">{subtitle}</div>}
       </div>
-    </div>
+    </>
   );
+
+  if (to) {
+    return (
+      <Link to={to} className="stat-card stat-card--clickable" style={{ textDecoration: 'none', display: 'block' }}>
+        {card}
+      </Link>
+    );
+  }
+
+  return <div className="stat-card">{card}</div>;
 }

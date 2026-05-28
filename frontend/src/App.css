@@ -399,6 +399,26 @@
   opacity: 1;
 }
 
+.stat-card--clickable {
+  cursor: pointer;
+}
+
+.stat-card--clickable:hover {
+  border-color: var(--color-primary);
+}
+
+.stat-value--link {
+  color: var(--color-text);
+  text-decoration: none;
+  display: inline-block;
+}
+
+.stat-value--link:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .stat-icon {
   width: var(--spacing-11);
   height: var(--spacing-11);

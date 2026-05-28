@@ -66,6 +66,23 @@ export interface CountResponse {
   current_count: number;
 }
 
+export interface PartStatsCategory {
+  name: string;
+  value: number;
+}
+
+export interface PartStatsDaily {
+  date: string;
+  Normal: number;
+  MigPartsBlocked: number;
+  TemplateNotFilled: number;
+}
+
+export interface PartStatsResponse {
+  category_breakdown: PartStatsCategory[];
+  daily_breakdown: PartStatsDaily[];
+}
+
 export interface PruneResponse {
   records_deleted: number;
   logs_deleted: number;

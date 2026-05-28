@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.config import Settings, get_settings
+from src.exceptions import PlmDataError
 from src.logger import get_logger
 from src.notifications.dingtalk import send_dingtalk_message
 from src.notifications.teams import send_teams_message
@@ -163,6 +164,16 @@ def get_records_count(
         "history_count": history_count,
         "current_count": current_count,
     }
+
+
+@router.get("/records/part/stats", tags=["Records"])
+def get_part_stats(dal: DataAccessLayer = Depends(get_dal)) -> dict:
+    """Return pre-computed part history stats for visualization.
+
+    Filters: history minus current, excludes Waiting for SAP Transfer.
+    Returns category breakdown (pie) and daily stacked breakdown (bar).
+    """
+    return dal.get_part_stats()
 
 
 @router.get("/records/{data_type}/summary", tags=["Records"])
@@ -367,17 +378,6 @@ def send_test_notification(
 # ---------------------------------------------------------------------------
 
 
-def _serialize_record(record) -> dict:
-    """Convert a ScrapeRecord ORM object to a JSON-safe dict."""
-    return {
-        "id": record.id,
-        "data_type": record.data_type,
-        "raw_data": record.raw_data,
-        "scraped_at": record.scraped_at.isoformat() if record.scraped_at else None,
-        "created_at": record.created_at.isoformat() if hasattr(record, "created_at") and record.created_at else None,
-    }
-
-
 def _format_bj_time(dt) -> str | None:
     """Format a datetime as ISO string with explicit +08:00 timezone suffix.
 
@@ -387,35 +387,112 @@ def _format_bj_time(dt) -> str | None:
     if dt is None:
         return None
     iso = dt.isoformat()
-    # Already has tz info (e.g. +08:00 or Z)
     if dt.tzinfo is not None:
         return iso
-    # Naive datetime — append +08:00 to make timezone unambiguous
     return f"{iso}+08:00"
 
 
 def _serialize_current_record(record) -> dict:
-    """Convert a ScrapeCurrent ORM object to a JSON-safe dict."""
-    return {
-        "id": record.id,
-        "data_type": record.data_type,
-        "item_key": record.item_key,
-        "item_index": record.item_index,
-        "raw_data": record.raw_data,
-        "scraped_at": _format_bj_time(record.scraped_at),
-        "created_at": _format_bj_time(record.created_at) if hasattr(record, "created_at") and record.created_at else None,
-    }
+    """Convert typed current ORM objects to backward-compatible JSON dict."""
+    model_name = record.__class__.__name__
+    if model_name == "PartCurrent":
+        raw_data = {
+            "part_no": record.part_no,
+            "index": record.index_,
+            "share_status": record.share_status,
+            "sap_info": record.sap_info,
+        }
+        return {
+            "id": record.id,
+            "data_type": "part",
+            "item_key": record.part_no,
+            "item_index": record.index_,
+            "raw_data": raw_data,
+            "scraped_at": _format_bj_time(record.scraped_at),
+            "created_at": _format_bj_time(record.created_at) if record.created_at else None,
+        }
+    elif model_name == "DocumentCurrent":
+        raw_data = {
+            "document_no": record.document_no,
+            "doc_index": record.doc_index,
+            "eai_message": record.eai_message,
+        }
+        return {
+            "id": record.id,
+            "data_type": "document",
+            "item_key": record.document_no,
+            "item_index": record.doc_index,
+            "raw_data": raw_data,
+            "scraped_at": _format_bj_time(record.scraped_at),
+            "created_at": _format_bj_time(record.created_at) if record.created_at else None,
+        }
+    elif model_name == "ConversionCurrent":
+        raw_data = {
+            "source": record.source,
+            "state": record.state,
+            "target_format": record.target_format,
+            "created_utc": record.created_utc,
+            "started_utc": record.started_utc,
+        }
+        return {
+            "id": record.id,
+            "data_type": "conversion",
+            "item_key": record.source,
+            "item_index": None,
+            "raw_data": raw_data,
+            "scraped_at": _format_bj_time(record.scraped_at),
+            "created_at": _format_bj_time(record.created_at) if record.created_at else None,
+        }
+    raise PlmDataError(f"Unknown current record model: {model_name}")
 
 
 def _serialize_history_record(record) -> dict:
-    """Convert a ScrapeHistory ORM object to a JSON-safe dict."""
-    return {
-        "id": record.id,
-        "data_type": record.data_type,
-        "raw_data": record.raw_data,
-        "scraped_at": _format_bj_time(record.scraped_at),
-        "created_at": _format_bj_time(record.created_at) if hasattr(record, "created_at") and record.created_at else None,
-    }
+    """Convert typed history ORM objects to backward-compatible JSON dict."""
+    model_name = record.__class__.__name__
+    if model_name == "PartHistory":
+        return {
+            "id": record.id,
+            "data_type": "part",
+            "raw_data": {
+                "part_no": record.part_no,
+                "index": record.index_,
+                "share_status": record.share_status,
+                "sap_info": record.sap_info,
+            },
+            "scraped_at": _format_bj_time(record.scraped_at),
+            "created_at": _format_bj_time(record.created_at) if record.created_at else None,
+        }
+    elif model_name == "DocumentHistory":
+        return {
+            "id": record.id,
+            "data_type": "document",
+            "raw_data": {
+                "document_no": record.document_no,
+                "doc_index": record.doc_index,
+                "eai_message": record.eai_message,
+            },
+            "scraped_at": _format_bj_time(record.scraped_at),
+            "created_at": _format_bj_time(record.created_at) if record.created_at else None,
+        }
+    elif model_name == "ConversionHistory":
+        return {
+            "id": record.id,
+            "data_type": "conversion",
+            "raw_data": {
+                "source": record.source,
+                "state": record.state,
+                "target_format": record.target_format,
+                "created_utc": record.created_utc,
+                "started_utc": record.started_utc,
+            },
+            "scraped_at": _format_bj_time(record.scraped_at),
+            "created_at": _format_bj_time(record.created_at) if record.created_at else None,
+        }
+    raise PlmDataError(f"Unknown history record model: {model_name}")
+
+
+# Alias for range/search routes (same as history serialization)
+_serialize_record = _serialize_history_record
 
 
 def _serialize_log(log) -> dict:

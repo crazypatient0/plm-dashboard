@@ -61,6 +61,7 @@ DOCUMENTS_COLUMNS: dict[str, int] = {
 
 MQ_ACS_COLUMNS: dict[str, int] = {
     "state": 1,
+    "source": 2,
     "target_format": 4,
     "created_utc": 5,
     "started_utc": 6,
@@ -87,8 +88,11 @@ def _extract_columns(
 
 
 def _filter_conversion(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Filter MQ ACS records to only those with target_format=step_ap214."""
-    return [r for r in records if r.get("target_format") == "step_ap214"]
+    """Filter conversion records: keep only target_format=step_ap214 (any state)."""
+    return [
+        r for r in records
+        if r.get("target_format") == "step_ap214"
+    ]
 
 
 def _filter_parts_by_sap_info(records: list[dict[str, Any]]) -> list[dict[str, Any]]:

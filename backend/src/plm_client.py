@@ -160,8 +160,8 @@ class PlmClient:
     def search_conversion(self) -> list[dict[str, Any]]:
         """Search for MQ ACS records for the specified site."""
         return self.search(
-            "/class/conversion/CDB_Search/run",
-            {"conversion.cdbmq_site": "edgeNiChina"},
+            "/class/mq_acs/CDB_Search/run",
+            {"mq_acs.cdbmq_site": "edgeNiChina"},
         )
 
     def get_session_status(self) -> bool:

@@ -12,9 +12,9 @@ import {
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: DashboardIcon },
-  { to: '/records/part', label: 'Parts', icon: PartsIcon },
-  { to: '/records/document', label: 'Documents', icon: FileIcon },
-  { to: '/records/conversion', label: 'Conversion', icon: LayersIcon },
+  { to: '/parts', label: 'Parts', icon: PartsIcon },
+  { to: '/documents', label: 'Documents', icon: FileIcon },
+  { to: '/conversion', label: 'Conversion', icon: LayersIcon },
   { to: '/scraper', label: 'Scraper', icon: SearchIcon },
   { to: '/scheduler', label: 'Scheduler', icon: ClockIcon },
   { to: '/logs', label: 'Logs', icon: ListIcon },

@@ -3,38 +3,15 @@ import { useApi } from '../hooks/useApi';
 import { fetchRecordsCount, fetchLatestRecords, fetchSummary } from '../api/client';
 import StatCard from '../components/StatCard';
 
-/** Return milliseconds until the next 5-minute mark (00, 05, 10, 15, ...). */
-function msUntilNext5Min(): number {
-  const now = new Date();
-  const mins = now.getMinutes();
-  const next5 = (Math.floor(mins / 5) + 1) * 5;
-  let nextTime = new Date(now);
-  if (next5 >= 60) {
-    nextTime.setHours(now.getHours() + 1);
-    nextTime.setMinutes(0);
-  } else {
-    nextTime.setMinutes(next5);
-  }
-  nextTime.setSeconds(0);
-  nextTime.setMilliseconds(0);
-  return nextTime.getTime() - now.getTime();
-}
-
 export default function DashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Auto-refresh at 5-minute boundaries: :00, :05, :10, :15, ...
+  // Auto-refresh every 30 seconds
   useEffect(() => {
-    const scheduleNext = () => {
-      const ms = msUntilNext5Min();
-      const tid = setTimeout(() => {
-        setRefreshKey((k) => k + 1);
-        scheduleNext();
-      }, ms);
-      return tid;
-    };
-    const tid = scheduleNext();
-    return () => clearTimeout(tid);
+    const tid = setInterval(() => {
+      setRefreshKey((k) => k + 1);
+    }, 30_000);
+    return () => clearInterval(tid);
   }, []);
 
   const deps = [refreshKey];
@@ -66,13 +43,14 @@ export default function DashboardPage() {
           <h2 className="section-title">Overview</h2>
         </div>
 
-        <div className="grid-3">
+          <div className="grid-3">
           <StatCard
             title="Parts"
             value={partCount.data?.current_count ?? 0}
             subtitle={`Latest: ${partSummary.data?.latest_scraped_at ? new Date(partSummary.data.latest_scraped_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : 'N/A'}`}
             color="primary"
             loading={loading}
+            to="/parts"
           />
           <StatCard
             title="Documents"
@@ -80,6 +58,7 @@ export default function DashboardPage() {
             subtitle={`Latest: ${docSummary.data?.latest_scraped_at ? new Date(docSummary.data.latest_scraped_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : 'N/A'}`}
             color="success"
             loading={loading}
+            to="/documents"
           />
           <StatCard
             title="Conversion"
@@ -87,6 +66,7 @@ export default function DashboardPage() {
             subtitle={`Latest: ${mqSummary.data?.latest_scraped_at ? new Date(mqSummary.data.latest_scraped_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : 'N/A'}`}
             color="warning"
             loading={loading}
+            to="/conversion"
           />
         </div>
       </div>
@@ -119,7 +99,7 @@ export default function DashboardPage() {
                 <tbody>
                   {parts.map((r) => (
                     <tr key={r.id}>
-                      <td>{String(r.raw_data.part_no ?? r.raw_data.item_number ?? '')}</td>
+                      <td className="text-sm text-secondary">{String(r.raw_data.part_no ?? r.raw_data.item_number ?? '')}</td>
                       <td className="text-sm text-secondary">{String(r.raw_data.index ?? '')}</td>
                       <td className="text-sm text-secondary">{String(r.raw_data.share_status ?? '')}</td>
                       <td className="text-sm" style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(r.raw_data.sap_info ?? '')}</td>
@@ -163,7 +143,7 @@ export default function DashboardPage() {
                 <tbody>
                   {docs.map((r) => (
                     <tr key={r.id}>
-                      <td>{String(r.raw_data.document_no ?? r.raw_data.item_number ?? '')}</td>
+                      <td className="text-sm text-secondary">{String(r.raw_data.document_no ?? r.raw_data.item_number ?? '')}</td>
                       <td className="text-sm text-secondary">{String(r.raw_data.doc_index ?? r.raw_data.index ?? '')}</td>
                       <td style={{ pointerEvents: 'none' }} />
                       <td className="text-sm" style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(r.raw_data.eai_message ?? '')}</td>
@@ -189,30 +169,29 @@ export default function DashboardPage() {
             <div className="card-body" style={{ padding: 0 }}>
               <table className="data-table">
                 <colgroup>
-                  <col style={{ width: '15%' }} />
-                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '25%' }} />
                   <col style={{ width: '20%' }} />
                   <col style={{ width: '35%' }} />
                   <col style={{ width: '20%' }} />
                 </colgroup>
                 <thead>
                   <tr>
+                    <th>Source</th>
                     <th>State</th>
-                    <th style={{ pointerEvents: 'none', userSelect: 'none' }} />
-                    <th style={{ pointerEvents: 'none', userSelect: 'none' }} />
-                    <th style={{ pointerEvents: 'none', userSelect: 'none' }} />
-                    <th>Scraped At</th>
+                    <th>Created</th>
+                    <th>Started</th>
                   </tr>
                 </thead>
                 <tbody>
                   {mqs.map((r) => (
                     <tr key={r.id}>
+                      <td className="text-sm text-secondary">{String(r.raw_data.source ?? '')}</td>
                       <td className="text-sm text-secondary">{String(r.raw_data.state ?? '')}</td>
-                      <td style={{ pointerEvents: 'none' }} />
-                      <td style={{ pointerEvents: 'none' }} />
-                      <td style={{ pointerEvents: 'none' }} />
                       <td className="text-sm text-secondary">
-                        {r.scraped_at ? new Date(r.scraped_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '\u2014'}
+                        {r.raw_data.created_utc ? new Date(String(r.raw_data.created_utc)).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '\u2014'}
+                      </td>
+                      <td className="text-sm text-secondary">
+                        {r.raw_data.started_utc ? new Date(String(r.raw_data.started_utc)).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '\u2014'}
                       </td>
                     </tr>
                   ))}

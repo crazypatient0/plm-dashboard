@@ -6,6 +6,7 @@ import type {
   DataType,
   HealthResponse,
   NotificationTestResponse,
+  PartStatsResponse,
   PruneResponse,
   ScrapeCurrent,
   ScrapeLog,
@@ -74,6 +75,11 @@ export async function fetchRecordsCount(
   const { data } = await http.get<CountResponse>(
     `/records/${dataType}/count`,
   );
+  return data;
+}
+
+export async function fetchPartStats(): Promise<PartStatsResponse> {
+  const { data } = await http.get<PartStatsResponse>('/records/part/stats');
   return data;
 }
 

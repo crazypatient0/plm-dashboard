@@ -25,7 +25,7 @@ from src.scraper import Scraper, ScrapeResult
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SCRAPE_INTERVAL_MINUTES = 5
+DEFAULT_SCRAPE_INTERVAL_MINUTES = 1
 DEFAULT_AI_ANALYSIS_HOUR = 2
 DEFAULT_SHUTDOWN_TIMEOUT_SECONDS = 30
 
