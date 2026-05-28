@@ -132,7 +132,7 @@ export default function DashboardPage() {
       {docs.length > 0 && (
         <div className="section">
           <div className="section-header">
-            <h2 className="section-title">Document Records</h2>
+            <h2 className="section-title">Documents - Data Analysis</h2>
           </div>
           <div className="card">
             <div className="card-body" style={{ padding: 0 }}>

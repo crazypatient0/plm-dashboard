@@ -663,14 +663,20 @@ class DataAccessLayer:
                 if created_utc_str and scraped_at:
                     try:
                         # created_utc: naive UTC string -> treat as UTC -> convert to BJ
-                        if created_utc_str.endswith("Z"):
+                        if created_utc_str and created_utc_str.endswith("Z"):
                             created_utc_tz = created_utc_str.replace("Z", "+00:00")
-                        else:
+                        elif created_utc_str:
                             created_utc_tz = created_utc_str + "+00:00"
-                        created_utc_dt = datetime.fromisoformat(created_utc_tz).astimezone(timezone.utc)
+                        else:
+                            raise ValueError("created_utc_str is None")
+                        created_utc_dt = datetime.fromisoformat(created_utc_tz).astimezone(UTC)
                         created_aware = created_utc_dt.astimezone(BJ_TZ)
-                        # scraped_at: naive BJ datetime (from datetime.now(BJ_TZ)) -> treat as BJ directly
-                        scraped_aware = scraped_at if scraped_at.tzinfo else scraped_at.replace(tzinfo=BJ_TZ)
+                        # scraped_at: can be datetime object or string from SQLite
+                        if isinstance(scraped_at, datetime):
+                            scraped_aware = scraped_at.replace(tzinfo=BJ_TZ) if not scraped_at.tzinfo else scraped_at.astimezone(BJ_TZ)
+                        else:
+                            # string: parse as naive BJ time
+                            scraped_aware = datetime.strptime(scraped_at.split(".")[0], "%Y-%m-%d %H:%M:%S").replace(tzinfo=BJ_TZ)
                         delta = scraped_aware - created_aware
                         wait_seconds = delta.total_seconds()
                         if wait_seconds < 0:

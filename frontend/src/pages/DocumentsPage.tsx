@@ -167,7 +167,7 @@ export default function DocumentsPage() {
       <div className="section">
         <div className="section-header">
           <div>
-            <h2 className="section-title">Document Records</h2>
+            <h2 className="section-title">Documents - Data Analysis</h2>
             <div className="text-secondary text-sm" style={{ marginTop: 4, paddingLeft: 2 }}>
               Auto-refresh in{' '}
               <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{secondsLeft}s</span>

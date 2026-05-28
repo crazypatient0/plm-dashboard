@@ -115,6 +115,13 @@ export default function ConversionPage() {
         svg.recharts-surface { outline: none !important; }
         .race-row:hover { background: rgba(255,255,255,0.03); }
         .race-row { transition: background 0.15s ease; }
+        @keyframes race-in {
+          from { width: 0; opacity: 0.4; }
+          to   { width: var(--bar-width); opacity: 1; }
+        }
+        .race-bar {
+          animation: race-in 1.2s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+        }
       `}</style>
 
       <div className="section">
@@ -206,13 +213,16 @@ export default function ConversionPage() {
                     </div>
                     {/* Race progress bar */}
                     <div style={{ height: 4, background: '#1e293b', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%',
-                        width: `${pct}%`,
-                        background: barColor,
-                        borderRadius: 2,
-                        transition: 'width 0.3s ease',
-                      }} />
+                      <div
+                        className="race-bar"
+                        style={{
+                          '--bar-width': `${pct}%`,
+                          height: '100%',
+                          width: `${pct}%`,
+                          background: barColor,
+                          borderRadius: 2,
+                        } as React.CSSProperties}
+                      />
                     </div>
                   </div>
 
