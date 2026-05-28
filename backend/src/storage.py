@@ -666,7 +666,7 @@ class DataAccessLayer:
                             created_utc_str.replace("Z", "+00:00")
                         )
                         # Treat created_utc as UTC, scraped_at as BJ
-                        created_aware = created_utc_dt.replace(tzinfo=BJ_TZ)
+                        created_aware = created_utc_dt.astimezone(BJ_TZ)
                         scraped_aware = scraped_at if scraped_at.tzinfo else scraped_at.replace(tzinfo=BJ_TZ)
                         delta = scraped_aware - created_aware
                         wait_seconds = delta.total_seconds()
