@@ -599,9 +599,9 @@ class DataAccessLayer:
                 select(
                     DocumentHistory.document_no,
                     func.coalesce(DocumentHistory.eai_message, ''),
-                    DocumentHistory.created_at,
+                    DocumentHistory.scraped_at,
                 )
-                .order_by(DocumentHistory.created_at)
+                .order_by(DocumentHistory.scraped_at)
             ).fetchall()
 
             # Category breakdown
@@ -610,11 +610,11 @@ class DataAccessLayer:
             daily: dict[str, dict[str, int]] = {}
 
             for row in history_rows:
-                _doc_no, eai_message, created_at = row
+                _doc_no, eai_message, scraped_at = row
                 cat = categorize_eai_message(eai_message)
                 category_breakdown[cat] += 1
 
-                day = created_at.strftime("%Y-%m-%d") if created_at else "unknown"
+                day = scraped_at.strftime("%Y-%m-%d") if scraped_at else "unknown"
                 if day not in daily:
                     daily[day] = {c: 0 for c in ALL_CATEGORIES}
                 daily[day][cat] += 1
