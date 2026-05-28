@@ -12,9 +12,9 @@ class Settings(BaseSettings):
     PLM_BASE_URL: str = "https://piaplmp.piagad.com"
     PLM_USERNAME: str = ""
     PLM_PASSWORD: str = ""
-    SCRAPE_INTERVAL_PARTS: int = 5
-    SCRAPE_INTERVAL_DOCUMENTS: int = 5
-    SCRAPE_INTERVAL_MQ_ACS: int = 5
+    SCRAPE_INTERVAL_PARTS: int = 1
+    SCRAPE_INTERVAL_DOCUMENTS: int = 1
+    SCRAPE_INTERVAL_MQ_ACS: int = 1
     TEAMS_WEBHOOK_URL: str | None = None
     DINGTALK_WEBHOOK_URL: str | None = None
     DATABASE_URL: str = "sqlite+aiosqlite:///./plm_dashboard.db"
