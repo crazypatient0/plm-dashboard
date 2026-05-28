@@ -146,19 +146,44 @@ class DataAccessLayer:
             return 0
         now = datetime.now(BJ_TZ)
         for r in records:
+            part_no = r.get("part_no", "")
+            index_ = r.get("index", "")
+            sap_info = r.get("sap_info")
+
+            # If new sap_info is NULL, check whether history already has a value
+            # Skip upsert entirely to preserve the existing non-NULL status
+            if sap_info is None:
+                existing = self.session.execute(
+                    select(PartHistory.sap_info).where(
+                        PartHistory.part_no == part_no,
+                        PartHistory.index_ == index_,
+                    )
+                ).scalar()
+                if existing is not None:
+                    # Already has non-NULL status; only touch scraped_at to mark it seen
+                    self.session.execute(
+                        text("""
+                            UPDATE part_history
+                            SET scraped_at = :now
+                            WHERE part_no = :part_no AND index_ = :index_
+                        """),
+                        {"now": now, "part_no": part_no, "index_": index_},
+                    )
+                    continue
+
             self.session.execute(
                 sqlite_insert(PartHistory).values(
-                    part_no=r.get("part_no", ""),
-                    index_=r.get("index", ""),
+                    part_no=part_no,
+                    index_=index_,
                     share_status=r.get("share_status"),
-                    sap_info=r.get("sap_info"),
+                    sap_info=sap_info,
                     scraped_at=now,
                     created_at=now,
                 ).on_conflict_do_update(
                     index_elements=["part_no", "index_"],
                     set_={
                         "share_status": r.get("share_status"),
-                        "sap_info": r.get("sap_info"),
+                        "sap_info": sap_info,
                         "scraped_at": now,
                     },
                 )
@@ -171,17 +196,42 @@ class DataAccessLayer:
             return 0
         now = datetime.now(BJ_TZ)
         for r in records:
+            doc_no = r.get("document_no", "")
+            doc_idx = r.get("doc_index", "")
+            eai_message = r.get("eai_message")
+
+            # If new eai_message is NULL, check whether history already has a value
+            # Skip upsert entirely to preserve the existing non-NULL message
+            if eai_message is None:
+                existing = self.session.execute(
+                    select(DocumentHistory.eai_message).where(
+                        DocumentHistory.document_no == doc_no,
+                        DocumentHistory.doc_index == doc_idx,
+                    )
+                ).scalar()
+                if existing is not None:
+                    # Already has non-NULL message; only touch scraped_at to mark it seen
+                    self.session.execute(
+                        text("""
+                            UPDATE document_history
+                            SET scraped_at = :now
+                            WHERE document_no = :doc_no AND doc_index = :doc_idx
+                        """),
+                        {"now": now, "doc_no": doc_no, "doc_idx": doc_idx},
+                    )
+                    continue
+
             self.session.execute(
                 sqlite_insert(DocumentHistory).values(
-                    document_no=r.get("document_no", ""),
-                    doc_index=r.get("doc_index", ""),
-                    eai_message=r.get("eai_message"),
+                    document_no=doc_no,
+                    doc_index=doc_idx,
+                    eai_message=eai_message,
                     scraped_at=now,
                     created_at=now,
                 ).on_conflict_do_update(
                     index_elements=["document_no", "doc_index"],
                     set_={
-                        "eai_message": r.get("eai_message"),
+                        "eai_message": eai_message,
                         "scraped_at": now,
                     },
                 )
@@ -475,17 +525,13 @@ class DataAccessLayer:
     def get_part_stats(self) -> dict:
         """Compute part history stats for visualization.
 
-        Data flow:
-        - history_minus_current = part_history records whose part_no is NOT in part_current
-        - filtered = history_minus_current minus any "Waiting for SAP Transfer" records
-        - Returns category breakdown and daily stacked breakdown
+        Uses FULL history table (all records), grouped by sap_info category.
+        Returns category breakdown, daily stacked breakdown, and current_count as baseline.
         """
         def categorize(sap_info: str | None) -> str:
             s = (sap_info or "").strip()
             if not s:
                 return "Normal"
-            if "Waiting for SAP Transfer" in s:
-                return "Waiting"
             if "SAP template not filled" in s:
                 return "TemplateNotFilled"
             if "MigParts prevent" in s:
@@ -493,30 +539,19 @@ class DataAccessLayer:
             return "Normal"
 
         try:
-            # Get part_nos currently in part_current
-            current_part_nos = set(
-                row[0] for row in self.session.execute(
-                    select(PartCurrent.part_no)
-                ).fetchall()
-            )
-
-            # Get all history records for parts NOT in current
+            # Get full history rows
             history_rows = self.session.execute(
                 select(PartHistory.part_no, PartHistory.sap_info, PartHistory.scraped_at)
-                .where(PartHistory.part_no.notin_(current_part_nos))
                 .order_by(PartHistory.scraped_at)
             ).fetchall()
 
-            # Filter out Waiting
-            filtered = [r for r in history_rows if categorize(r[1]) != "Waiting"]
-
             # Category breakdown
             from collections import Counter
-            cat_counter = Counter(categorize(r[1]) for r in filtered)
+            cat_counter = Counter(categorize(r[1]) for r in history_rows)
 
             # Daily breakdown
             daily: dict[str, dict[str, int]] = {}
-            for r in filtered:
+            for r in history_rows:
                 scraped_at: datetime = r[2]
                 day = scraped_at.strftime("%Y-%m-%d") if scraped_at else "unknown"
                 if day not in daily:
@@ -529,6 +564,9 @@ class DataAccessLayer:
                 key=lambda x: x["date"],
             )
 
+            # Current count as baseline for percentages
+            current_count = self.get_current_count("part")
+
             return {
                 "category_breakdown": [
                     {"name": "Normal", "value": cat_counter.get("Normal", 0)},
@@ -536,6 +574,7 @@ class DataAccessLayer:
                     {"name": "TemplateNotFilled", "value": cat_counter.get("TemplateNotFilled", 0)},
                 ],
                 "daily_breakdown": daily_breakdown,
+                "current_count": current_count,
             }
         except Exception as e:
             logger.error("Failed to get part stats: %s", e)

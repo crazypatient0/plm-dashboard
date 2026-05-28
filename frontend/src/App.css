@@ -355,6 +355,7 @@
 
 .main-content {
   flex: 1;
+  min-height: 0;
   padding: var(--spacing-7);
   overflow-y: auto;
 }
@@ -542,8 +543,9 @@
   background: var(--color-surface);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow: auto;
   box-shadow: var(--shadow);
+  max-height: 650px;
 }
 
 .data-table {
@@ -559,10 +561,13 @@
   text-transform: uppercase;
   letter-spacing: var(--spacing-1);
   color: var(--color-text-muted);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface);
   border-bottom: var(--border-width) solid var(--color-border);
   white-space: nowrap;
   font-family: var(--font-family);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .data-table td {
@@ -841,4 +846,12 @@
   .app-layout {
     grid-template-columns: var(--sidebar-collapsed) 1fr;
   }
+}
+
+/* ============================================================
+   Loading spinner
+   ============================================================ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

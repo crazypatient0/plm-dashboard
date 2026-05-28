@@ -4,10 +4,7 @@ import {
   PartsIcon,
   FileIcon,
   LayersIcon,
-  SearchIcon,
-  ClockIcon,
   ListIcon,
-  SettingsIcon,
 } from '../icons';
 
 const NAV_ITEMS = [
@@ -15,10 +12,7 @@ const NAV_ITEMS = [
   { to: '/parts', label: 'Parts', icon: PartsIcon },
   { to: '/documents', label: 'Documents', icon: FileIcon },
   { to: '/conversion', label: 'Conversion', icon: LayersIcon },
-  { to: '/scraper', label: 'Scraper', icon: SearchIcon },
-  { to: '/scheduler', label: 'Scheduler', icon: ClockIcon },
   { to: '/logs', label: 'Logs', icon: ListIcon },
-  { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
 export default function Layout() {

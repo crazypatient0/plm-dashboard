@@ -81,6 +81,7 @@ export interface PartStatsDaily {
 export interface PartStatsResponse {
   category_breakdown: PartStatsCategory[];
   daily_breakdown: PartStatsDaily[];
+  current_count: number;
 }
 
 export interface PruneResponse {

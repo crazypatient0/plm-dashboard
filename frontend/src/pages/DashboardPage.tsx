@@ -5,12 +5,19 @@ import StatCard from '../components/StatCard';
 
 export default function DashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(30);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
     const tid = setInterval(() => {
-      setRefreshKey((k) => k + 1);
-    }, 30_000);
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          setRefreshKey((k) => k + 1);
+          return 30;
+        }
+        return s - 1;
+      });
+    }, 1000);
     return () => clearInterval(tid);
   }, []);
 
@@ -40,7 +47,13 @@ export default function DashboardPage() {
     <div>
         <div className="section">
         <div className="section-header">
-          <h2 className="section-title">Overview</h2>
+          <div>
+            <h2 className="section-title">Overview</h2>
+            <div className="text-secondary text-sm" style={{ marginTop: 4, paddingLeft: 2 }}>
+              Auto-refresh in{' '}
+              <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{secondsLeft}s</span>
+            </div>
+          </div>
         </div>
 
           <div className="grid-3">
@@ -74,9 +87,15 @@ export default function DashboardPage() {
       {/* Part Records */}
       {parts.length > 0 && (
         <div className="section">
-          <div className="section-header">
-            <h2 className="section-title">Part Records</h2>
+        <div className="section-header">
+          <div>
+            <h2 className="section-title">Overview</h2>
+            <div className="text-secondary text-sm" style={{ marginTop: 4, paddingLeft: 2 }}>
+              Auto-refresh in{' '}
+              <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{secondsLeft}s</span>
+            </div>
           </div>
+        </div>
           <div className="card">
             <div className="card-body" style={{ padding: 0 }}>
               <table className="data-table">

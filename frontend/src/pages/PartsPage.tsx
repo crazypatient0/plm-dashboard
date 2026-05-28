@@ -98,6 +98,7 @@ function BarValueLabel({ x, y, width, value }: { x: number; y: number; width: nu
 export default function PartsPage() {
   const [stats, setStats] = useState<PartStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [secondsLeft, setSecondsLeft] = useState(30);
 
   useEffect(() => {
     const load = () => {
@@ -106,7 +107,15 @@ export default function PartsPage() {
         .catch(() => setLoading(false));
     };
     load();
-    const tid = setInterval(load, 30_000);
+    const tid = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          load();
+          return 30;
+        }
+        return s - 1;
+      });
+    }, 1000);
     return () => clearInterval(tid);
   }, []);
 
@@ -140,8 +149,6 @@ export default function PartsPage() {
   return (
     <div>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .chart-card:hover .chart-inner { transform: translateY(-2px); }
         .recharts-wrapper:focus { outline: none !important; }
         .recharts-wrapper svg { outline: none !important; }
         .recharts-surface:focus { outline: none !important; }
@@ -157,7 +164,13 @@ export default function PartsPage() {
 
       <div className="section">
         <div className="section-header">
-          <h2 className="section-title">Parts - Data Analysis</h2>
+          <div>
+            <h2 className="section-title">Parts - Data Analysis</h2>
+            <div className="text-secondary text-sm" style={{ marginTop: 4, paddingLeft: 2 }}>
+              Auto-refresh in{' '}
+              <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{secondsLeft}s</span>
+            </div>
+          </div>
         </div>
       </div>
 
