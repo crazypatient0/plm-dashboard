@@ -71,6 +71,15 @@ export interface PartStatsCategory {
   value: number;
 }
 
+export interface DocumentStatsResponse {
+  total: number;
+  category_breakdown: Record<string, number>;
+  daily_breakdown: Array<{
+    date: string;
+    categories: Record<string, number>;
+  }>;
+}
+
 export interface PartStatsDaily {
   date: string;
   Normal: number;

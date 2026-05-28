@@ -176,6 +176,15 @@ def get_part_stats(dal: DataAccessLayer = Depends(get_dal)) -> dict:
     return dal.get_part_stats()
 
 
+@router.get("/records/document/stats", tags=["Records"])
+def get_document_stats(dal: DataAccessLayer = Depends(get_dal)) -> dict:
+    """Return pre-computed document history stats for visualization.
+
+    Returns category breakdown and daily stacked breakdown of EAI messages.
+    """
+    return dal.get_document_stats()
+
+
 @router.get("/records/{data_type}/summary", tags=["Records"])
 def get_records_summary(
     data_type: str,

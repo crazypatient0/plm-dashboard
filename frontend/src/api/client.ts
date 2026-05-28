@@ -4,6 +4,7 @@ import axios from 'axios';
 import type {
   CountResponse,
   DataType,
+  DocumentStatsResponse,
   HealthResponse,
   NotificationTestResponse,
   PartStatsResponse,
@@ -80,6 +81,13 @@ export async function fetchRecordsCount(
 
 export async function fetchPartStats(): Promise<PartStatsResponse> {
   const { data } = await http.get<PartStatsResponse>('/records/part/stats');
+  return data;
+}
+
+export async function fetchDocumentStats(): Promise<DocumentStatsResponse> {
+  const { data } = await http.get<DocumentStatsResponse>(
+    '/records/document/stats',
+  );
   return data;
 }
 

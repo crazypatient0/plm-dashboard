@@ -18,6 +18,7 @@ from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
+from src.categorize import categorize_eai_message
 from src.exceptions import PlmDataError
 from src.logger import get_logger
 from src.models import (
@@ -579,3 +580,60 @@ class DataAccessLayer:
         except Exception as e:
             logger.error("Failed to get part stats: %s", e)
             raise PlmDataError(f"Failed to get part stats: {e}") from e
+
+    # -------------------------------------------------------------------------
+    # Document stats (for visualization)
+    # -------------------------------------------------------------------------
+
+    def get_document_stats(self) -> dict:
+        """Compute document history stats for visualization.
+
+        Uses FULL history table (all records), categorized by EAI message.
+        Returns category breakdown and daily stacked breakdown.
+        """
+        ALL_CATEGORIES = ["Normal", "StatusFlowError", "MissingOriginals"]
+
+        try:
+            # Get full history rows with COALESCE to handle NULL eai_message
+            history_rows = self.session.execute(
+                select(
+                    DocumentHistory.document_no,
+                    func.coalesce(DocumentHistory.eai_message, ''),
+                    DocumentHistory.created_at,
+                )
+                .order_by(DocumentHistory.created_at)
+            ).fetchall()
+
+            # Category breakdown
+            from collections import defaultdict
+            category_breakdown: dict[str, int] = defaultdict(int)
+            daily: dict[str, dict[str, int]] = {}
+
+            for row in history_rows:
+                _doc_no, eai_message, created_at = row
+                cat = categorize_eai_message(eai_message)
+                category_breakdown[cat] += 1
+
+                day = created_at.strftime("%Y-%m-%d") if created_at else "unknown"
+                if day not in daily:
+                    daily[day] = {c: 0 for c in ALL_CATEGORIES}
+                daily[day][cat] += 1
+
+            # Ensure all categories are present in category_breakdown
+            for cat in ALL_CATEGORIES:
+                if cat not in category_breakdown:
+                    category_breakdown[cat] = 0
+
+            daily_breakdown = sorted(
+                [{"date": d, "categories": counts} for d, counts in daily.items()],
+                key=lambda x: x["date"],
+            )
+
+            return {
+                "total": sum(category_breakdown.values()),
+                "category_breakdown": dict(category_breakdown),
+                "daily_breakdown": daily_breakdown,
+            }
+        except Exception as e:
+            logger.error("Failed to get document stats: %s", e)
+            raise PlmDataError(f"Failed to get document stats: {e}") from e

@@ -174,6 +174,30 @@ export default function PartsPage() {
         </div>
       </div>
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+        <div className="card" style={{ padding: '12px 16px' }}>
+          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Total</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-text)', marginTop: 4 }}>{stats.current_count}</div>
+        </div>
+        {[
+          { key: 'Normal', color: COLORS.Normal },
+          { key: 'MigPartsBlocked', color: COLORS.MigPartsBlocked },
+          { key: 'TemplateNotFilled', color: COLORS.TemplateNotFilled },
+        ].map(({ key, color }) => {
+          const item = category_breakdown.find((c) => c.name === key);
+          const count = item?.value ?? 0;
+          return (
+            <div key={key} className="card" style={{ padding: '12px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                {LABELS[key]}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-text)', marginTop: 4 }}>{count}</div>
+            </div>
+          );
+        })}
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-6)', marginBottom: 'var(--spacing-6)' }}>
 
         {/* Donut chart */}
