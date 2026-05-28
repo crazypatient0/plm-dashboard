@@ -662,16 +662,19 @@ class DataAccessLayer:
                 wait_seconds: float | None = None
                 if created_utc_str and scraped_at:
                     try:
-                        created_utc_dt = datetime.fromisoformat(
-                            created_utc_str.replace("Z", "+00:00")
-                        )
-                        # Treat created_utc as UTC, scraped_at as BJ
+                        # created_utc: naive UTC string -> treat as UTC -> convert to BJ
+                        if created_utc_str.endswith("Z"):
+                            created_utc_tz = created_utc_str.replace("Z", "+00:00")
+                        else:
+                            created_utc_tz = created_utc_str + "+00:00"
+                        created_utc_dt = datetime.fromisoformat(created_utc_tz).astimezone(timezone.utc)
                         created_aware = created_utc_dt.astimezone(BJ_TZ)
+                        # scraped_at: naive BJ datetime (from datetime.now(BJ_TZ)) -> treat as BJ directly
                         scraped_aware = scraped_at if scraped_at.tzinfo else scraped_at.replace(tzinfo=BJ_TZ)
                         delta = scraped_aware - created_aware
                         wait_seconds = delta.total_seconds()
                         if wait_seconds < 0:
-                            wait_seconds = 0  # guard against clock skew
+                            wait_seconds = 0
                     except Exception:
                         wait_seconds = None
 
