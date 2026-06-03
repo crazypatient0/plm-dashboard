@@ -12,13 +12,13 @@ Current tables use truncate + full insert.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from statistics import median
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from src.categorize import categorize_eai_message
 from src.exceptions import PlmDataError
 from src.logger import get_logger
 from src.models import (
@@ -143,100 +143,35 @@ class DataAccessLayer:
     # -------------------------------------------------------------------------
 
     def _upsert_part_history(self, records: list[dict]) -> int:
+        """Append part records to history (append-only log)."""
         if not records:
             return 0
         now = datetime.now(BJ_TZ)
         for r in records:
-            part_no = r.get("part_no", "")
-            index_ = r.get("index", "")
-            sap_info = r.get("sap_info")
-
-            # If new sap_info is NULL, check whether history already has a value
-            # Skip upsert entirely to preserve the existing non-NULL status
-            if sap_info is None:
-                existing = self.session.execute(
-                    select(PartHistory.sap_info).where(
-                        PartHistory.part_no == part_no,
-                        PartHistory.index_ == index_,
-                    )
-                ).scalar()
-                if existing is not None:
-                    # Already has non-NULL status; only touch scraped_at to mark it seen
-                    self.session.execute(
-                        text("""
-                            UPDATE part_history
-                            SET scraped_at = :now
-                            WHERE part_no = :part_no AND index_ = :index_
-                        """),
-                        {"now": now, "part_no": part_no, "index_": index_},
-                    )
-                    continue
-
-            self.session.execute(
-                sqlite_insert(PartHistory).values(
-                    part_no=part_no,
-                    index_=index_,
-                    share_status=r.get("share_status"),
-                    sap_info=sap_info,
-                    scraped_at=now,
-                    created_at=now,
-                ).on_conflict_do_update(
-                    index_elements=["part_no", "index_"],
-                    set_={
-                        "share_status": r.get("share_status"),
-                        "sap_info": sap_info,
-                        "scraped_at": now,
-                    },
-                )
-            )
+            self.session.add(PartHistory(
+                part_no=r.get("part_no", ""),
+                index_=r.get("index", ""),
+                share_status=r.get("share_status"),
+                sap_info=r.get("sap_info"),
+                scraped_at=now,
+                created_at=now,
+            ))
         self.session.commit()
         return len(records)
 
     def _upsert_document_history(self, records: list[dict]) -> int:
+        """Append document records to history (append-only log)."""
         if not records:
             return 0
         now = datetime.now(BJ_TZ)
         for r in records:
-            doc_no = r.get("document_no", "")
-            doc_idx = r.get("doc_index", "")
-            eai_message = r.get("eai_message")
-
-            # If new eai_message is NULL, check whether history already has a value
-            # Skip upsert entirely to preserve the existing non-NULL message
-            if eai_message is None:
-                existing = self.session.execute(
-                    select(DocumentHistory.eai_message).where(
-                        DocumentHistory.document_no == doc_no,
-                        DocumentHistory.doc_index == doc_idx,
-                    )
-                ).scalar()
-                if existing is not None:
-                    # Already has non-NULL message; only touch scraped_at to mark it seen
-                    self.session.execute(
-                        text("""
-                            UPDATE document_history
-                            SET scraped_at = :now
-                            WHERE document_no = :doc_no AND doc_index = :doc_idx
-                        """),
-                        {"now": now, "doc_no": doc_no, "doc_idx": doc_idx},
-                    )
-                    continue
-
-            self.session.execute(
-                sqlite_insert(DocumentHistory).values(
-                    document_no=doc_no,
-                    doc_index=doc_idx,
-                    eai_message=eai_message,
-                    scraped_at=now,
-                    created_at=now,
-                ).on_conflict_do_update(
-                    index_elements=["document_no", "doc_index"],
-                    set_={
-                        "eai_message": eai_message,
-                        "scraped_at": now,
-                    },
-                )
-            )
+            self.session.add(DocumentHistory(
+                document_no=r.get("document_no", ""),
+                doc_index=r.get("doc_index", ""),
+                eai_message=r.get("eai_message"),
+                scraped_at=now,
+                created_at=now,
+            ))
         self.session.commit()
         return len(records)
 
@@ -519,124 +454,108 @@ class DataAccessLayer:
             logger.error("Failed to save log: %s", e)
             raise PlmDataError(f"Failed to save log: {e}") from e
 
-    # -------------------------------------------------------------------------
-    # Part stats (for visualization)
-    # -------------------------------------------------------------------------
+    def get_processing_time_stats(self, data_type: str) -> dict:
+        """Compute processing time distribution for the given data type.
 
-    def get_part_stats(self) -> dict:
-        """Compute part history stats for visualization.
+        For each group defined by the natural key (part_no + index_ for parts,
+        document_no + doc_index for documents) the duration is computed as:
+            duration_seconds = LAST(scraped_at) - FIRST(scraped_at)
 
-        Uses FULL history table (all records), grouped by sap_info category.
-        Returns category breakdown, daily stacked breakdown, and current_count as baseline.
+        Groups with only a single record (COUNT <= 1) are excluded since they
+        represent items that appeared in only one scrape cycle.
+
+        Returns a dict with:
+          total_items         — number of groups that qualified (COUNT > 1)
+          average_seconds     — mean duration across all qualified groups
+          median_seconds      — median duration
+          min_seconds         — shortest duration
+          max_seconds         — longest duration
+          distribution        — list of { label, min, max, count } buckets
         """
-        def categorize(sap_info: str | None) -> str:
-            s = (sap_info or "").strip()
-            if not s:
-                return "Normal"
-            if "SAP template not filled" in s:
-                return "TemplateNotFilled"
-            if "MigParts prevent" in s:
-                return "MigPartsBlocked"
-            return "Normal"
-
         try:
-            # Get full history rows
-            history_rows = self.session.execute(
-                select(PartHistory.part_no, PartHistory.sap_info, PartHistory.scraped_at)
-                .order_by(PartHistory.scraped_at)
-            ).fetchall()
-
-            # Category breakdown
-            from collections import Counter
-            cat_counter = Counter(categorize(r[1]) for r in history_rows)
-
-            # Daily breakdown
-            daily: dict[str, dict[str, int]] = {}
-            for r in history_rows:
-                scraped_at: datetime = r[2]
-                day = scraped_at.strftime("%Y-%m-%d") if scraped_at else "unknown"
-                if day not in daily:
-                    daily[day] = {"Normal": 0, "MigPartsBlocked": 0, "TemplateNotFilled": 0}
-                cat = categorize(r[1])
-                daily[day][cat] += 1
-
-            daily_breakdown = sorted(
-                [{"date": d, **counts} for d, counts in daily.items()],
-                key=lambda x: x["date"],
-            )
-
-            # Current count as baseline for percentages
-            current_count = self.get_current_count("part")
-
-            return {
-                "category_breakdown": [
-                    {"name": "Normal", "value": cat_counter.get("Normal", 0)},
-                    {"name": "MigPartsBlocked", "value": cat_counter.get("MigPartsBlocked", 0)},
-                    {"name": "TemplateNotFilled", "value": cat_counter.get("TemplateNotFilled", 0)},
-                ],
-                "daily_breakdown": daily_breakdown,
-                "current_count": current_count,
-            }
-        except Exception as e:
-            logger.error("Failed to get part stats: %s", e)
-            raise PlmDataError(f"Failed to get part stats: {e}") from e
-
-    # -------------------------------------------------------------------------
-    # Document stats (for visualization)
-    # -------------------------------------------------------------------------
-
-    def get_document_stats(self) -> dict:
-        """Compute document history stats for visualization.
-
-        Uses FULL history table (all records), categorized by EAI message.
-        Returns category breakdown and daily stacked breakdown.
-        """
-        ALL_CATEGORIES = ["Normal", "StatusFlowError", "MissingOriginals"]
-
-        try:
-            # Get full history rows with COALESCE to handle NULL eai_message
-            history_rows = self.session.execute(
-                select(
-                    DocumentHistory.document_no,
-                    func.coalesce(DocumentHistory.eai_message, ''),
-                    DocumentHistory.scraped_at,
+            # ---- pick model + key columns based on data_type ----
+            if data_type == "part":
+                key_cols = [PartHistory.part_no, PartHistory.index_]
+                stmt = (
+                    select(
+                        *key_cols,
+                        func.count().label("record_count"),
+                        func.min(PartHistory.scraped_at).label("first_seen"),
+                        func.max(PartHistory.scraped_at).label("last_seen"),
+                    )
+                    .group_by(*key_cols)
+                    .having(func.count() > 1)
                 )
-                .order_by(DocumentHistory.scraped_at)
-            ).fetchall()
+            elif data_type == "document":
+                key_cols = [DocumentHistory.document_no, DocumentHistory.doc_index]
+                stmt = (
+                    select(
+                        *key_cols,
+                        func.count().label("record_count"),
+                        func.min(DocumentHistory.scraped_at).label("first_seen"),
+                        func.max(DocumentHistory.scraped_at).label("last_seen"),
+                    )
+                    .group_by(*key_cols)
+                    .having(func.count() > 1)
+                )
+            else:
+                raise PlmDataError(f"Unsupported data_type for processing time: {data_type}")
 
-            # Category breakdown
-            from collections import defaultdict
-            category_breakdown: dict[str, int] = defaultdict(int)
-            daily: dict[str, dict[str, int]] = {}
+            rows = self.session.execute(stmt).fetchall()
 
-            for row in history_rows:
-                _doc_no, eai_message, scraped_at = row
-                cat = categorize_eai_message(eai_message)
-                category_breakdown[cat] += 1
+            durations: list[float] = []
+            for r in rows:
+                first: datetime = r.first_seen
+                last: datetime = r.last_seen
+                if first and last:
+                    dur = (last - first).total_seconds()
+                    if dur >= 0:
+                        durations.append(dur)
 
-                day = scraped_at.strftime("%Y-%m-%d") if scraped_at else "unknown"
-                if day not in daily:
-                    daily[day] = {c: 0 for c in ALL_CATEGORIES}
-                daily[day][cat] += 1
+            if not durations:
+                return {
+                    "total_items": 0,
+                    "average_seconds": None,
+                    "median_seconds": None,
+                    "min_seconds": None,
+                    "max_seconds": None,
+                    "distribution": [],
+                }
 
-            # Ensure all categories are present in category_breakdown
-            for cat in ALL_CATEGORIES:
-                if cat not in category_breakdown:
-                    category_breakdown[cat] = 0
+            # build distribution buckets (in seconds)
+            BUCKETS: list[tuple[float, float | None, str]] = [
+                (0, 30, "< 30s"),
+                (30, 120, "30s - 2min"),
+                (120, 600, "2min - 10min"),
+                (600, 1800, "10min - 30min"),
+                (1800, 7200, "30min - 2h"),
+                (7200, None, ">= 2h"),
+            ]
 
-            daily_breakdown = sorted(
-                [{"date": d, "categories": counts} for d, counts in daily.items()],
-                key=lambda x: x["date"],
-            )
+            distribution: list[dict] = []
+            for lo, hi, label in BUCKETS:
+                if hi is None:
+                    count = sum(1 for d in durations if d >= lo)
+                else:
+                    count = sum(1 for d in durations if lo <= d < hi)
+                distribution.append({
+                    "label": label,
+                    "min": lo,
+                    "max": hi,
+                    "count": count,
+                })
 
             return {
-                "total": sum(category_breakdown.values()),
-                "category_breakdown": dict(category_breakdown),
-                "daily_breakdown": daily_breakdown,
+                "total_items": len(durations),
+                "average_seconds": round(sum(durations) / len(durations), 1),
+                "median_seconds": round(median(durations), 1),
+                "min_seconds": round(min(durations), 1),
+                "max_seconds": round(max(durations), 1),
+                "distribution": distribution,
             }
         except Exception as e:
-            logger.error("Failed to get document stats: %s", e)
-            raise PlmDataError(f"Failed to get document stats: {e}") from e
+            logger.error("Failed to get processing time stats: %s", e)
+            raise PlmDataError(f"Failed to get processing time stats: {e}") from e
 
     def get_conversion_stats(self) -> dict:
         """Compute conversion current stats for the race-track visualization.
