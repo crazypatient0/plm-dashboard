@@ -103,23 +103,13 @@ class DataAccessLayer:
         try:
             self.session.execute(delete(ConversionCurrent))
             now = datetime.now(BJ_TZ)
-            if records:
-                for r in records:
-                    self.session.add(ConversionCurrent(
-                        source=r.get("source", ""),
-                        state=r.get("state"),
-                        target_format=r.get("target_format"),
-                        created_utc=r.get("created_utc"),
-                        started_utc=r.get("started_utc"),
-                        scraped_at=now,
-                    ))
-            else:
+            for r in records:
                 self.session.add(ConversionCurrent(
-                    source="",
-                    state=None,
-                    target_format=None,
-                    created_utc=None,
-                    started_utc=None,
+                    source=r.get("source", ""),
+                    state=r.get("state"),
+                    target_format=r.get("target_format"),
+                    created_utc=r.get("created_utc"),
+                    started_utc=r.get("started_utc"),
                     scraped_at=now,
                 ))
             self.session.commit()
@@ -572,7 +562,7 @@ class DataAccessLayer:
                     ConversionCurrent.target_format,
                     ConversionCurrent.created_utc,
                     ConversionCurrent.scraped_at,
-                )
+                ).where(ConversionCurrent.source != "")
             ).fetchall()
 
             items: list[dict] = []
