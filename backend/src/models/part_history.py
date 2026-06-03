@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Text, UniqueConstraint
+from sqlalchemy import Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -8,9 +8,6 @@ from .base import Base
 
 class PartHistory(Base):
     __tablename__ = "part_history"
-    __table_args__ = (
-        UniqueConstraint("part_no", "index_", name="uq_part_history_item"),
-    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     part_no: Mapped[str] = mapped_column()
