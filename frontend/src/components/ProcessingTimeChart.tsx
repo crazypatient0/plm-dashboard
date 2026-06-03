@@ -128,7 +128,7 @@ export default function ProcessingTimeChart({ dataType, refreshKey = 0 }: Props)
     pct: total > 0 ? Math.round((b.count / total) * 100) : 0,
   }));
   const maxCount = Math.max(...chartData.map((d) => d.count), 5);
-  const yMax = Math.ceil(maxCount / 5) * 5;
+  const yMax = (Math.floor(maxCount / 5) + 1) * 5;
   const yTicks = Array.from({ length: yMax / 5 + 1 }, (_, i) => i * 5);
 
   return <>
