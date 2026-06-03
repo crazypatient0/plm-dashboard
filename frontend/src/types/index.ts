@@ -66,27 +66,6 @@ export interface CountResponse {
   current_count: number;
 }
 
-export interface PartStatsCategory {
-  name: string;
-  value: number;
-}
-
-export interface DocumentStatsResponse {
-  total: number;
-  category_breakdown: Record<string, number>;
-  daily_breakdown: Array<{
-    date: string;
-    categories: Record<string, number>;
-  }>;
-}
-
-export interface PartStatsDaily {
-  date: string;
-  Normal: number;
-  MigPartsBlocked: number;
-  TemplateNotFilled: number;
-}
-
 export interface ConversionStatsItem {
   source: string;
   state: string;
@@ -101,10 +80,20 @@ export interface ConversionStatsResponse {
   items: ConversionStatsItem[];
 }
 
-export interface PartStatsResponse {
-  category_breakdown: PartStatsCategory[];
-  daily_breakdown: PartStatsDaily[];
-  current_count: number;
+export interface ProcessingTimeBucket {
+  label: string;
+  min: number;
+  max: number | null;
+  count: number;
+}
+
+export interface ProcessingTimeResponse {
+  total_items: number;
+  average_seconds: number | null;
+  median_seconds: number | null;
+  min_seconds: number | null;
+  max_seconds: number | null;
+  distribution: ProcessingTimeBucket[];
 }
 
 export interface PruneResponse {

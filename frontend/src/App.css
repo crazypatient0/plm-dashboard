@@ -855,3 +855,22 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ============================================================
+   Recharts - kill all default white backgrounds
+   ============================================================ */
+
+.recharts-wrapper,
+.recharts-surface,
+.recharts-tooltip-wrapper,
+.recharts-default-tooltip,
+.recharts-legend-wrapper {
+  background: transparent !important;
+}
+
+/* Remove focus outline when clicking SVG (tabindex="0") */
+.recharts-surface:focus,
+.recharts-surface:focus-visible {
+  outline: none !important;
+}
+

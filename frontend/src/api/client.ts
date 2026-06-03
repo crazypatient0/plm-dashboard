@@ -5,10 +5,9 @@ import type {
   ConversionStatsResponse,
   CountResponse,
   DataType,
-  DocumentStatsResponse,
   HealthResponse,
   NotificationTestResponse,
-  PartStatsResponse,
+  ProcessingTimeResponse,
   PruneResponse,
   ScrapeCurrent,
   ScrapeLog,
@@ -80,18 +79,6 @@ export async function fetchRecordsCount(
   return data;
 }
 
-export async function fetchPartStats(): Promise<PartStatsResponse> {
-  const { data } = await http.get<PartStatsResponse>('/records/part/stats');
-  return data;
-}
-
-export async function fetchDocumentStats(): Promise<DocumentStatsResponse> {
-  const { data } = await http.get<DocumentStatsResponse>(
-    '/records/document/stats',
-  );
-  return data;
-}
-
 export async function fetchConversionStats(): Promise<ConversionStatsResponse> {
   const { data } = await http.get<ConversionStatsResponse>(
     '/records/conversion/stats',
@@ -104,6 +91,15 @@ export async function fetchSummary(
 ): Promise<SummaryResponse> {
   const { data } = await http.get<SummaryResponse>(
     `/records/${dataType}/summary`,
+  );
+  return data;
+}
+
+export async function fetchProcessingTime(
+  dataType: string,
+): Promise<ProcessingTimeResponse> {
+  const { data } = await http.get<ProcessingTimeResponse>(
+    `/records/${dataType}/processing-time`,
   );
   return data;
 }
