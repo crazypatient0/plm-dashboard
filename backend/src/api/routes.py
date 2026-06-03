@@ -166,25 +166,6 @@ def get_records_count(
     }
 
 
-@router.get("/records/part/stats", tags=["Records"])
-def get_part_stats(dal: DataAccessLayer = Depends(get_dal)) -> dict:
-    """Return pre-computed part history stats for visualization.
-
-    Filters: history minus current, excludes Waiting for SAP Transfer.
-    Returns category breakdown (pie) and daily stacked breakdown (bar).
-    """
-    return dal.get_part_stats()
-
-
-@router.get("/records/document/stats", tags=["Records"])
-def get_document_stats(dal: DataAccessLayer = Depends(get_dal)) -> dict:
-    """Return pre-computed document history stats for visualization.
-
-    Returns category breakdown and daily stacked breakdown of EAI messages.
-    """
-    return dal.get_document_stats()
-
-
 @router.get("/records/conversion/stats", tags=["Records"])
 def get_conversion_stats(dal: DataAccessLayer = Depends(get_dal)) -> dict:
     """Return conversion race-track stats for visualization.
@@ -207,6 +188,25 @@ def get_records_summary(
         "latest_scraped_at": _format_bj_time(summary["latest_scraped_at"]),
         "oldest_scraped_at": _format_bj_time(summary["oldest_scraped_at"]),
     }
+
+
+@router.get("/records/{data_type}/processing-time", tags=["Records"])
+def get_processing_time(
+    data_type: str,
+    dal: DataAccessLayer = Depends(get_dal),
+) -> dict:
+    """Return processing time distribution for parts or documents.
+
+    For each group (part_no+index_ or document_no+doc_index) with more than one
+    history record, computes the duration between first and last scrape.
+    Returns aggregate stats and a histogram broken into time buckets.
+    """
+    if data_type not in ("part", "document"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid data_type: {data_type}. Expected 'part' or 'document'.",
+        )
+    return dal.get_processing_time_stats(data_type)
 
 
 @router.get("/records/{data_type}/search", tags=["Records"])

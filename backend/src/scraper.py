@@ -95,16 +95,6 @@ def _filter_conversion(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
-def _filter_parts_by_sap_info(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Filter out part records where sap_info is exactly 'OK' (case-insensitive)."""
-    return [r for r in records if not (r.get("sap_info") and str(r["sap_info"]).strip().upper() == "OK")]
-
-
-def _filter_documents_by_eai_message(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Filter out document records where eai_message is exactly 'OK' (case-insensitive)."""
-    return [r for r in records if not (r.get("eai_message") and str(r["eai_message"]).strip().upper() == "OK")]
-
-
 # ---------------------------------------------------------------------------
 # Per-type scrape result
 # ---------------------------------------------------------------------------
@@ -160,18 +150,16 @@ class Scraper:
     # ---- Individual query helpers ----------------------------------------
 
     def _scrape_parts(self) -> ScrapeResult:
-        """Fetch, extract and filter parts data."""
+        """Fetch and extract parts data."""
         raw_rows = self._client.search_parts()
         extracted = [_extract_columns(r, PARTS_COLUMNS) for r in raw_rows]
-        records = _filter_parts_by_sap_info(extracted)
-        return ScrapeResult(data_type="part", records=records)
+        return ScrapeResult(data_type="part", records=extracted)
 
     def _scrape_documents(self) -> ScrapeResult:
-        """Fetch, extract and filter document data."""
+        """Fetch and extract document data."""
         raw_rows = self._client.search_documents()
         extracted = [_extract_columns(r, DOCUMENTS_COLUMNS) for r in raw_rows]
-        records = _filter_documents_by_eai_message(extracted)
-        return ScrapeResult(data_type="document", records=records)
+        return ScrapeResult(data_type="document", records=extracted)
 
     def _scrape_conversion(self) -> ScrapeResult:
         """Fetch, extract and filter MQ ACS data."""
